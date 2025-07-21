@@ -1,0 +1,1 @@
+COPY INTO hits FROM 's3://bench-dataset/clickhouse/hits_compatible/hits.csv.gz' FILE_FORMAT = (TYPE = CSV, FIELD_DELIMITER = ',', FIELD_OPTIONALLY_ENCLOSED_BY='\"');

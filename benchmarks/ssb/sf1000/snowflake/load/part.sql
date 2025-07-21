@@ -1,0 +1,1 @@
+copy into PART from 's3://bench-dataset/ssb/sf1000/part/' FILE_FORMAT =(TYPE = CSV, COMPRESSION = GZIP, FIELD_DELIMITER = '|', ERROR_ON_COLUMN_COUNT_MISMATCH=FALSE);

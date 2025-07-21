@@ -1,0 +1,24 @@
+# ClickHouse ClickBench Update (25%) Benchmark Configuration
+
+# Engine connection information
+engine:
+  type: "clickhouse"
+  connection:
+    clickhouse_host: "${CLICKHOUSE_HOST:-xxx.clickhouse.cloud}"
+    user: "default"
+    password: "${PASSWORD:-}"
+    db: "${DB:-default}"
+
+# Benchmark parameters
+parameters:
+  load: "${LOAD:-false}"
+  query: "${QUERY:-false}"
+  query_times: "${QUERY_TIMES:-3}"
+
+# Test resource paths (relative to this YAML file)
+paths:
+  ddl: "ddl/ddl.sql"
+  load_dir: "load/"
+  query_mode: "line"
+  query_dirs:
+    - "query/"
