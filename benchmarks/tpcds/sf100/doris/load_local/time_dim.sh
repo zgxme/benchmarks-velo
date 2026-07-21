@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../../../../../lib/doris_stream_load_utils.sh"
+
 table="time_dim"
 
 # Doris connection (inherited from benchmark.yaml via benchmark.sh)
@@ -60,24 +63,6 @@ do_curl() {
   fi
 }
 
-run_stream_load() {
-  local this_label="$1"
-  local input_file="$2"
-  local load_scope="${3:-full file}"
-  local curl_status
-
-  set +e
-  resp="$(do_curl "$this_label" "$input_file")"
-  curl_status=$?
-  set -e
-
-  if [ "$curl_status" -ne 0 ]; then
-    [ -n "$resp" ] && echo "$resp"
-    echo "[ERROR] Stream load request failed for ${db}.${table} (${load_scope}, label: ${this_label}, curl exit=${curl_status})" >&2
-    exit "$curl_status"
-  fi
-}
-
 if (( file_size_bytes > max_body_bytes )); then
   chunk_dir="${DORIS_STREAM_LOAD_CHUNK_DIR:-/tmp/doris_stream_load_chunks}/${db}/${table}_${label}"
   mkdir -p "$chunk_dir"
@@ -90,7 +75,7 @@ if (( file_size_bytes > max_body_bytes )); then
   for part in "$chunk_dir"/part_*; do
     part_suffix="$(basename "$part")"
     part_label="${label}_${part_suffix}"
-    run_stream_load "$part_label" "$part" "chunk: $part_suffix"
+    run_doris_stream_load "$part_label" "$part" "chunk: $part_suffix"
     echo "$resp"
     echo "$resp" | grep -Eqi '"status"[[:space:]]*:[[:space:]]*"success"' || {
       echo "[ERROR] Stream load failed for ${db}.${table} (chunk: $part_suffix)" >&2
@@ -100,7 +85,7 @@ if (( file_size_bytes > max_body_bytes )); then
   exit 0
 fi
 
-run_stream_load "$label" '/root/benchmarks/benchmarks/tpcds/sf100/postgresql/data/time_dim.dat' "full file"
+run_doris_stream_load "$label" '/root/benchmarks/benchmarks/tpcds/sf100/postgresql/data/time_dim.dat' "full file"
 
 echo "$resp"
 echo "$resp" | grep -Eqi '"status"[[:space:]]*:[[:space:]]*"success"' || {
