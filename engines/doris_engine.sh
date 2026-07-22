@@ -19,6 +19,9 @@ source "${SCRIPT_DIR}/interface.sh"
 # Load JDBC utilities
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/jdbc_utils.sh"
 
+# Load HTTP utilities
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/http_utils.sh"
+
 BE_HOSTS_ARR=()
 
 doris_qualified_db() {
@@ -64,11 +67,15 @@ parse_be_hosts() {
 }
 
 discover_be_hosts_from_fe() {
-    local query output host discovered_hosts=""
+    local query output host discovered_hosts="" discovery_errors=""
     export MYSQL_PWD="${password:-}"
 
     for query in "SHOW BACKENDS;" "SHOW COMPUTE NODES;"; do
-        if ! output=$(mysql -h"$fe_host" -P"$fe_query_port" -u"$user" -N -s -e "$query" 2>/dev/null); then
+        local mysql_status
+        output=$(mysql -h"$fe_host" -P"$fe_query_port" -u"$user" -N -s -e "$query" 2>&1)
+        mysql_status=$?
+        if [ "$mysql_status" -ne 0 ]; then
+            discovery_errors+="  query [${query}] failed (mysql exit=${mysql_status}): ${output:-<no error output>}"$'\n'
             continue
         fi
 
@@ -84,7 +91,15 @@ discover_be_hosts_from_fe() {
         done < <(printf '%s\n' "$output" | awk -F'\t' 'NF >= 2 && $2 != "" {print $2}')
     done
 
-    [ -z "$discovered_hosts" ] && return 1
+    if [ -z "$discovered_hosts" ]; then
+        echo "failed to auto-discover Doris BE hosts from FE ${fe_host}:${fe_query_port}" >&2
+        if [ -n "$discovery_errors" ]; then
+            printf '%s' "$discovery_errors" >&2
+        else
+            echo "  discovery queries succeeded but returned no BE hosts" >&2
+        fi
+        return 1
+    fi
     be_hosts="$discovered_hosts"
     echo "auto-discovered Doris BE hosts from FE: ${be_hosts}"
     return 0
@@ -431,11 +446,13 @@ clear_system_page_cache_by_ssh() {
     local be
     for be in "${BE_HOSTS_ARR[@]}"; do
         echo "[${be}] ssh drop_caches"
-        if ! ssh -o StrictHostKeyChecking=no -o BatchMode=yes \
+        ssh -o StrictHostKeyChecking=no -o BatchMode=yes \
                 "${ssh_user}@${be}" \
-                "sync; echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null"; then
-            echo "drop_caches failed on ${be}" >&2
-            return 1
+                "sync; echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null"
+        local ssh_status=$?
+        if [ "$ssh_status" -ne 0 ]; then
+            echo "[${be}] drop_caches over ssh failed (ssh exit=${ssh_status})" >&2
+            return "$ssh_status"
         fi
     done
     sleep 3
@@ -459,10 +476,11 @@ clear_system_page_cache_by_http() {
     for be in "${BE_HOSTS_ARR[@]}"; do
         local attempt=0
         local response=""
+        local url="http://${be}:${port}${path}"
         while true; do
-            echo "[${be}] GET ${path}"
-            if ! response=$(curl -fsS -u "${auth_user}:${auth_password}" "http://${be}:${port}${path}"); then
-                echo "drop_sys_cache failed on ${be}" >&2
+            echo "[${be}] GET ${url}"
+            if ! curl_capture_or_log response "[${be}] drop_sys_cache from ${url}" \
+                    -fsS -u "${auth_user}:${auth_password}" "$url"; then
                 return 1
             fi
             printf '%s\n' "$response"
@@ -544,9 +562,10 @@ configure_doris_page_cache() {
 
     for be in "${BE_HOSTS_ARR[@]}"; do
         local config parsed current mutable
-        echo "[${be}] GET api/show_config disable_storage_page_cache"
-        if ! config=$(curl -fsS -u "${auth_user}:${auth_password}" "http://${be}:${port}/api/show_config"); then
-            echo "show_config failed on ${be}" >&2
+        local show_config_url="http://${be}:${port}/api/show_config"
+        echo "[${be}] GET ${show_config_url} disable_storage_page_cache"
+        if ! curl_capture_or_log config "[${be}] show_config from ${show_config_url}" \
+                -fsS -u "${auth_user}:${auth_password}" "$show_config_url"; then
             return 1
         fi
 
@@ -575,10 +594,14 @@ configure_doris_page_cache() {
         fi
 
         echo "[${be}] POST disable_storage_page_cache=${desired}"
-        if ! curl -fsS -u "${auth_user}:${auth_password}" -X POST "http://${be}:${port}/api/update_config?disable_storage_page_cache=${desired}"; then
-            echo "update_config disable_storage_page_cache=${desired} failed on ${be}" >&2
+        local update_config_url="http://${be}:${port}/api/update_config?disable_storage_page_cache=${desired}"
+        local update_response
+        if ! curl_capture_or_log update_response \
+                "[${be}] update_config disable_storage_page_cache=${desired} at ${update_config_url}" \
+                -fsS -u "${auth_user}:${auth_password}" -X POST "$update_config_url"; then
             return 1
         fi
+        printf '%s\n' "$update_response"
         echo
     done
     return 0
@@ -595,10 +618,15 @@ clear_doris_file_cache_on_be() {
     local http_port="${be_http_port:-8040}"
     local auth_user="${user:-root}"
     local auth_password="${password:-}"
+    local url="http://${be}:${http_port}/api/file_cache?op=clear&sync=true"
+    local response
 
-    echo "[${be}] GET api/file_cache?op=clear&sync=true (${label})"
-    curl -fsS -u "${auth_user}:${auth_password}" -X GET \
-        "http://${be}:${http_port}/api/file_cache?op=clear&sync=true"
+    echo "[${be}] GET ${url} (${label})"
+    if ! curl_capture_or_log response "[${be}] clear file_cache via ${url}" \
+            -fsS -u "${auth_user}:${auth_password}" -X GET "$url"; then
+        return 1
+    fi
+    printf '%s\n' "$response"
 }
 
 # Port of selectdb-qa ClearDorisFileCache:
@@ -629,8 +657,9 @@ clear_doris_file_cache() {
         local need_reclear=()
         for be in "${BE_HOSTS_ARR[@]}"; do
             local metrics
-            if ! metrics=$(curl -fsS "http://${be}:${brpc_port}/brpc_metrics" 2>/dev/null); then
-                echo "[${be}] failed to fetch brpc_metrics" >&2
+            local metrics_url="http://${be}:${brpc_port}/brpc_metrics"
+            if ! curl_capture_or_log metrics "[${be}] fetch brpc_metrics from ${metrics_url}" \
+                    -fsS "$metrics_url"; then
                 all_below="false"
                 continue
             fi

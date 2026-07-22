@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../../../../../lib/doris_stream_load_utils.sh"
+
 table="web_sales"
 
 # Doris connection (inherited from benchmark.yaml via benchmark.sh)
@@ -72,7 +75,7 @@ if (( file_size_bytes > max_body_bytes )); then
   for part in "$chunk_dir"/part_*; do
     part_suffix="$(basename "$part")"
     part_label="${label}_${part_suffix}"
-    resp="$(do_curl "$part_label" "$part")"
+    run_doris_stream_load "$part_label" "$part" "chunk: $part_suffix"
     echo "$resp"
     echo "$resp" | grep -Eqi '"status"[[:space:]]*:[[:space:]]*"success"' || {
       echo "[ERROR] Stream load failed for ${db}.${table} (chunk: $part_suffix)" >&2
@@ -82,7 +85,7 @@ if (( file_size_bytes > max_body_bytes )); then
   exit 0
 fi
 
-resp="$(do_curl "$label" '/root/benchmarks/benchmarks/tpcds/sf100/postgresql/data/web_sales.dat')"
+run_doris_stream_load "$label" '/root/benchmarks/benchmarks/tpcds/sf100/postgresql/data/web_sales.dat' "full file"
 
 echo "$resp"
 echo "$resp" | grep -Eqi '"status"[[:space:]]*:[[:space:]]*"success"' || {
