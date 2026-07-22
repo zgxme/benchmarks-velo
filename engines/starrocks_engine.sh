@@ -373,6 +373,7 @@ engine_get_analyze_plan() {
     local sql_statement="$2"
     export MYSQL_PWD="${password:-}"
     local args=(-h"$fe_host" -P"$fe_query_port" -u"$user" --batch --raw --skip-column-names)
+    db_name="$(starrocks_qualified_db "$db_name")"
     [ -n "$db_name" ] && args+=(-D"$db_name")
     mysql "${args[@]}" -e "EXPLAIN ANALYZE ${sql_statement}" 2>/dev/null || true
 }
