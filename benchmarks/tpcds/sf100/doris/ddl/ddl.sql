@@ -1,11 +1,27 @@
-DROP CATALOG IF EXISTS `tpcds`;
-
-CREATE CATALOG IF NOT EXISTS `tpcds` PROPERTIES(
-    "type" = "trino-connector",
-    "trino.connector.name" = "tpcds",
-    "trino.tpcds.split-count" = "128"
-);
-
+drop table if exists call_center;
+drop table if exists catalog_page;
+drop table if exists catalog_returns;
+drop table if exists catalog_sales;
+drop table if exists customer_address;
+drop table if exists customer_demographics;
+drop table if exists customer;
+drop table if exists date_dim;
+drop table if exists household_demographics;
+drop table if exists income_band;
+drop table if exists inventory;
+drop table if exists item;
+drop table if exists promotion;
+drop table if exists reason;
+drop table if exists ship_mode;
+drop table if exists store_returns;
+drop table if exists store_sales;
+drop table if exists store;
+drop table if exists time_dim;
+drop table if exists warehouse;
+drop table if exists web_page;
+drop table if exists web_returns;
+drop table if exists web_sales;
+drop table if exists web_site;
 create table call_center
 (
     cc_call_center_sk         integer               not null,
@@ -58,7 +74,7 @@ create table catalog_page
     cp_type                   varchar(100)
 )
 duplicate key (cp_catalog_page_sk)
-distributed by hash(cp_catalog_page_sk) buckets 9
+distributed by hash(cp_catalog_page_sk) buckets 1
 properties(
     "replication_num" = "1"
 );
@@ -93,7 +109,7 @@ create table catalog_returns
     cr_net_loss               decimal(7,2)
 )
 duplicate key (cr_returned_date_sk, cr_item_sk, cr_order_number)
-distributed by hash(cr_item_sk, cr_order_number) buckets 36
+distributed by hash(cr_item_sk, cr_order_number) buckets 16
 properties(
     "replication_num" = "1"
 );
@@ -135,7 +151,7 @@ create table catalog_sales
     cs_net_profit             decimal(7,2)
 )
 duplicate key (cs_sold_date_sk, cs_item_sk, cs_order_number)
-distributed by hash(cs_item_sk, cs_order_number) buckets 261
+distributed by hash(cs_item_sk, cs_order_number) buckets 192
 properties(
     "replication_num" = "1"
 );
@@ -156,7 +172,7 @@ create table customer_address
     ca_location_type          varchar(20)
 )
 duplicate key(ca_address_sk)
-distributed by hash(ca_address_sk) buckets 18
+distributed by hash(ca_address_sk) buckets 10
 properties(
     "replication_num" = "1"
 );
@@ -173,7 +189,7 @@ create table customer_demographics
     cd_dep_college_count      integer
 )
 duplicate key (cd_demo_sk)
-distributed by hash(cd_demo_sk) buckets 9
+distributed by hash(cd_demo_sk) buckets 10
 properties(
     "replication_num" = "1"
 );
@@ -199,7 +215,7 @@ create table customer
     c_last_review_date_sk     integer
 )
 duplicate key (c_customer_sk)
-distributed by hash(c_customer_sk) buckets 18
+distributed by hash(c_customer_sk) buckets 10
 properties(
     "replication_num" = "1"
 );
@@ -235,7 +251,7 @@ create table date_dim
     d_current_year            varchar(1)
 )
 duplicate key (d_date_sk)
-distributed by hash(d_date_sk) buckets 9
+distributed by hash(d_date_sk) buckets 5
 properties(
     "replication_num" = "1"
 );
@@ -271,7 +287,7 @@ create table inventory
     inv_quantity_on_hand      integer
 )
 duplicate key (inv_date_sk, inv_item_sk, inv_warehouse_sk)
-distributed by hash(inv_item_sk) buckets 63
+distributed by hash(inv_item_sk) buckets 32
 properties(
     "replication_num" = "1"
 );
@@ -301,7 +317,7 @@ create table item
     i_product_name            varchar(50)
 )
 duplicate key (i_item_sk)
-distributed by hash(i_item_sk) buckets 9
+distributed by hash(i_item_sk) buckets 10
 properties(
     "replication_num" = "1"
 );
@@ -361,7 +377,7 @@ create table store_returns
 (
     sr_returned_date_sk       integer                       ,
     sr_item_sk                integer               not null,
-    sr_ticket_number          integer               not null,
+    sr_ticket_number          integer                not null,
     sr_return_time_sk         integer                       ,
     sr_customer_sk            integer                       ,
     sr_cdemo_sk               integer                       ,
@@ -381,7 +397,7 @@ create table store_returns
     sr_net_loss               decimal(7,2)
 )
 duplicate key (sr_returned_date_sk, sr_item_sk, sr_ticket_number)
-distributed by hash(sr_item_sk, sr_ticket_number) buckets 36
+distributed by hash(sr_item_sk, sr_ticket_number) buckets 10
 properties(
     "replication_num" = "1"
 );
@@ -389,7 +405,7 @@ create table store_sales
 (
     ss_sold_date_sk           integer                       ,
     ss_item_sk                integer               not null,
-    ss_ticket_number          integer               not null,
+    ss_ticket_number          integer                not null,
     ss_sold_time_sk           integer                       ,
     ss_customer_sk            integer                       ,
     ss_cdemo_sk               integer                       ,
@@ -412,7 +428,7 @@ create table store_sales
     ss_net_profit             decimal(7,2)
 )
 duplicate key (ss_sold_date_sk, ss_item_sk, ss_ticket_number)
-distributed by hash(ss_item_sk, ss_ticket_number) buckets 261
+distributed by hash(ss_item_sk, ss_ticket_number) buckets 192
 properties(
     "replication_num" = "1"
 );
@@ -467,7 +483,7 @@ create table time_dim
     t_meal_time               varchar(20)
 )
 duplicate key (t_time_sk)
-distributed by hash(t_time_sk) buckets 9
+distributed by hash(t_time_sk) buckets 5
 properties(
     "replication_num" = "1"
 );
@@ -543,7 +559,7 @@ create table web_returns
     wr_net_loss               decimal(7,2)
 )
 duplicate key (wr_returned_date_sk, wr_item_sk, wr_order_number)
-distributed by hash(wr_item_sk, wr_order_number) buckets 18
+distributed by hash(wr_item_sk, wr_order_number) buckets 10
 properties(
     "replication_num" = "1"
 );
@@ -585,7 +601,7 @@ create table web_sales
     ws_net_profit             decimal(7,2)
 )
 duplicate key (ws_sold_date_sk, ws_item_sk, ws_order_number)
-distributed by hash(ws_item_sk, ws_order_number) buckets 126
+distributed by hash(ws_item_sk, ws_order_number) buckets 192
 properties(
     "replication_num" = "1"
 );
@@ -623,15 +639,3 @@ distributed by hash(web_site_sk) buckets 1
 properties(
     "replication_num" = "1"
 );
-
--- https://github.com/apache/doris/blob/master/tools/tpcds-tools/constraints/build-pk-constraints.sql
-alter table item add constraint i_pk primary key (i_item_sk);
-alter table customer add constraint c_pk primary key (c_customer_sk);
-
--- https://github.com/apache/doris/blob/master/tools/tpcds-tools/constraints/build-uk-constraints.sql
-alter table customer add constraint c_uk unique (c_customer_id);
-
--- https://github.com/apache/doris/blob/master/tools/tpcds-tools/constraints/build-fk-constraints.sql
-alter table store_sales add constraint ss_c_fk foreign key(ss_customer_sk) references customer(c_customer_sk);
-alter table web_sales add constraint ws_c_fk foreign key(ws_bill_customer_sk) references customer(c_customer_sk);
-alter table catalog_sales add constraint cs_c_fk foreign key(cs_bill_customer_sk) references customer(c_customer_sk);

@@ -7,7 +7,7 @@ with ws as
    from web_sales
    left join web_returns on wr_order_number=ws_order_number and ws_item_sk=wr_item_sk
    join date_dim on ws_sold_date_sk = d_date_sk
-   where wr_order_number is null and d_year=1998
+   where wr_order_number is null
    group by d_year, ws_item_sk, ws_bill_customer_sk
    ),
 cs as
@@ -19,7 +19,7 @@ cs as
    from catalog_sales
    left join catalog_returns on cr_order_number=cs_order_number and cs_item_sk=cr_item_sk
    join date_dim on cs_sold_date_sk = d_date_sk
-   where cr_order_number is null and d_year=1998
+   where cr_order_number is null
    group by d_year, cs_item_sk, cs_bill_customer_sk
    ),
 ss as
@@ -31,11 +31,11 @@ ss as
    from store_sales
    left join store_returns on sr_ticket_number=ss_ticket_number and ss_item_sk=sr_item_sk
    join date_dim on ss_sold_date_sk = d_date_sk
-   where sr_ticket_number is null and d_year=1998
+   where sr_ticket_number is null
    group by d_year, ss_item_sk, ss_customer_sk
    )
 select 
-ss_customer_sk,
+ss_item_sk,
 round(ss_qty/(coalesce(ws_qty,0)+coalesce(cs_qty,0)),2) ratio,
 ss_qty store_qty, ss_wc store_wholesale_cost, ss_sp store_sales_price,
 coalesce(ws_qty,0)+coalesce(cs_qty,0) other_chan_qty,
@@ -44,9 +44,9 @@ coalesce(ws_sp,0)+coalesce(cs_sp,0) other_chan_sales_price
 from ss
 left join ws on (ws_sold_year=ss_sold_year and ws_item_sk=ss_item_sk and ws_customer_sk=ss_customer_sk)
 left join cs on (cs_sold_year=ss_sold_year and cs_item_sk=ss_item_sk and cs_customer_sk=ss_customer_sk)
-where (coalesce(ws_qty,0)>0 or coalesce(cs_qty, 0)>0) and ss_sold_year=1998
+where (coalesce(ws_qty,0)>0 or coalesce(cs_qty, 0)>0) and ss_sold_year=2000
 order by 
-  ss_customer_sk,
+  ss_item_sk,
   ss_qty desc, ss_wc desc, ss_sp desc,
   other_chan_qty,
   other_chan_wholesale_cost,

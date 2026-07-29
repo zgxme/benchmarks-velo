@@ -18,7 +18,7 @@ with frequent_ss_items as
          and ss_sold_date_sk = d_date_sk
          and d_year in (2000,2000+1,2000+2,2000+3) 
         group by c_customer_sk) t),
-best_ss_customer as
+ best_ss_customer as
  (select c_customer_sk,sum(ss_quantity*ss_sales_price) ssales
   from store_sales
       ,customer
@@ -28,12 +28,12 @@ best_ss_customer as
   *
 from
  max_store_sales))
- select  sum(sales)
+  select  sum(sales)
  from (select cs_quantity*cs_list_price sales
        from catalog_sales
            ,date_dim 
        where d_year = 2000 
-         and d_moy = 7 
+         and d_moy = 5 
          and cs_sold_date_sk = d_date_sk 
          and cs_item_sk in (select item_sk from frequent_ss_items)
          and cs_bill_customer_sk in (select c_customer_sk from best_ss_customer)
@@ -42,7 +42,7 @@ from
        from web_sales 
            ,date_dim 
        where d_year = 2000 
-         and d_moy = 7 
+         and d_moy = 5 
          and ws_sold_date_sk = d_date_sk 
          and ws_item_sk in (select item_sk from frequent_ss_items)
          and ws_bill_customer_sk in (select c_customer_sk from best_ss_customer)) t2 
