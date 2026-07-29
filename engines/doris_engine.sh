@@ -22,6 +22,8 @@ source "$(dirname "${BASH_SOURCE[0]}")/../lib/jdbc_utils.sh"
 # Load HTTP utilities
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/http_utils.sh"
 
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/common_utils.sh"
+
 BE_HOSTS_ARR=()
 
 doris_qualified_db() {
@@ -172,7 +174,7 @@ engine_init() {
     fi
     
     local sys_cache_method="${clear_sys_page_cache_method:-ssh}"
-    sys_cache_method="${sys_cache_method,,}"
+    sys_cache_method="$(to_lower "$sys_cache_method")"
 
     if [[ "${clear_file_cache:-false}" == "true" ]] \
         || should_configure_doris_page_cache \
@@ -509,7 +511,7 @@ clear_system_page_cache_by_http() {
 #   GET http://<be>:8050/drop_sys_cache
 clear_system_page_cache() {
     local method="${clear_sys_page_cache_method:-ssh}"
-    method="${method,,}"
+    method="$(to_lower "$method")"
 
     case "$method" in
         ssh)
@@ -555,7 +557,7 @@ configure_doris_page_cache() {
     local desired="${disable_doris_page_cache:-false}"
     local be
 
-    desired="${desired,,}"
+    desired="$(to_lower "$desired")"
     if [[ "$desired" != "true" ]]; then
         desired="false"
     fi
@@ -576,8 +578,8 @@ configure_doris_page_cache() {
         fi
 
         IFS=$'\t' read -r current mutable <<< "$parsed"
-        current="${current,,}"
-        mutable="${mutable,,}"
+        current="$(to_lower "$current")"
+        mutable="$(to_lower "$mutable")"
         if [[ "$current" != "true" && "$current" != "false" ]]; then
             echo "invalid disable_storage_page_cache value on ${be}: ${current}" >&2
             return 1
