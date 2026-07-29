@@ -244,11 +244,13 @@ engine_set_auto_analyze() {
     local enabled="$1"
     local collect="false"
     local full_collect="false"
+    local query_trigger_analyze="false"
     local output=""
 
     if [ "$enabled" = "true" ]; then
         collect="true"
         full_collect="true"
+        query_trigger_analyze="true"
     fi
 
     export MYSQL_PWD="${password:-}"
@@ -261,6 +263,14 @@ engine_set_auto_analyze() {
 
     if ! output=$(mysql -h"$fe_host" -P"$fe_query_port" -u"$user" -e "ADMIN SET FRONTEND CONFIG ('enable_collect_full_statistic'='${full_collect}');" 2>&1); then
         if [[ "$output" != *"EMR"* ]]; then
+            echo "$output" >&2
+            return 1
+        fi
+    fi
+
+    if ! output=$(mysql -h"$fe_host" -P"$fe_query_port" -u"$user" \
+            -e "SET GLOBAL enable_query_trigger_analyze=${query_trigger_analyze};" 2>&1); then
+        if [[ "$output" != *"Unknown system variable"* ]]; then
             echo "$output" >&2
             return 1
         fi
