@@ -4,7 +4,7 @@ from (select avg(ss_list_price) B1_LP
             ,count(distinct ss_list_price) B1_CNTD
       from store_sales
       where ss_quantity between 0 and 5
-        and (ss_list_price between 131 and 131+10
+        and (ss_list_price between 131 and 131+10 
              or ss_coupon_amt between 16798 and 16798+1000
              or ss_wholesale_cost between 25 and 25+20)) B1,
      (select avg(ss_list_price) B2_LP

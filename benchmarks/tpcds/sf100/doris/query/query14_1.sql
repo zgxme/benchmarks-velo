@@ -67,11 +67,11 @@ with  cross_items as
                            ,last_year.i_class_id ly_class
                            ,last_year.i_category_id ly_category
                            ,last_year.sales ly_sales
-                           ,last_year.number_sales ly_number_sales
+                           ,last_year.number_sales ly_number_sales 
  from
  (select 'store' channel, i_brand_id,i_class_id,i_category_id
         ,sum(ss_quantity*ss_list_price) sales, count(*) number_sales
- from store_sales
+ from store_sales 
      ,item
      ,date_dim
  where ss_item_sk in (select ss_item_sk from cross_items)

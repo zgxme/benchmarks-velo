@@ -1,8 +1,8 @@
 with ss as (
  select i_item_id,sum(ss_ext_sales_price) total_sales
  from
-     store_sales,
-     date_dim,
+ 	store_sales,
+ 	date_dim,
          customer_address,
          item
  where i_item_id in (select
@@ -14,13 +14,13 @@ where i_color in ('powder','green','cyan'))
  and     d_year                  = 2000
  and     d_moy                   = 2
  and     ss_addr_sk              = ca_address_sk
- and     ca_gmt_offset           = -6
+ and     ca_gmt_offset           = -6 
  group by i_item_id),
  cs as (
  select i_item_id,sum(cs_ext_sales_price) total_sales
  from
-     catalog_sales,
-     date_dim,
+ 	catalog_sales,
+ 	date_dim,
          customer_address,
          item
  where
@@ -33,13 +33,13 @@ where i_color in ('powder','green','cyan'))
  and     d_year                  = 2000
  and     d_moy                   = 2
  and     cs_bill_addr_sk         = ca_address_sk
- and     ca_gmt_offset           = -6
+ and     ca_gmt_offset           = -6 
  group by i_item_id),
  ws as (
  select i_item_id,sum(ws_ext_sales_price) total_sales
  from
-     web_sales,
-     date_dim,
+ 	web_sales,
+ 	date_dim,
          customer_address,
          item
  where
@@ -55,9 +55,9 @@ where i_color in ('powder','green','cyan'))
  and     ca_gmt_offset           = -6
  group by i_item_id)
   select  i_item_id ,sum(total_sales) total_sales
- from  (select * from ss
+ from  (select * from ss 
         union all
-        select * from cs
+        select * from cs 
         union all
         select * from ws) tmp1
  group by i_item_id

@@ -2,8 +2,8 @@ with ss as (
  select
           i_manufact_id,sum(ss_ext_sales_price) total_sales
  from
-     store_sales,
-     date_dim,
+ 	store_sales,
+ 	date_dim,
          customer_address,
          item
  where
@@ -17,14 +17,14 @@ where i_category in ('Home'))
  and     d_year                  = 2002
  and     d_moy                   = 1
  and     ss_addr_sk              = ca_address_sk
- and     ca_gmt_offset           = -5
+ and     ca_gmt_offset           = -5 
  group by i_manufact_id),
  cs as (
  select
           i_manufact_id,sum(cs_ext_sales_price) total_sales
  from
-     catalog_sales,
-     date_dim,
+ 	catalog_sales,
+ 	date_dim,
          customer_address,
          item
  where
@@ -38,14 +38,14 @@ where i_category in ('Home'))
  and     d_year                  = 2002
  and     d_moy                   = 1
  and     cs_bill_addr_sk         = ca_address_sk
- and     ca_gmt_offset           = -5
+ and     ca_gmt_offset           = -5 
  group by i_manufact_id),
  ws as (
  select
           i_manufact_id,sum(ws_ext_sales_price) total_sales
  from
-     web_sales,
-     date_dim,
+ 	web_sales,
+ 	date_dim,
          customer_address,
          item
  where
@@ -62,9 +62,9 @@ where i_category in ('Home'))
  and     ca_gmt_offset           = -5
  group by i_manufact_id)
   select  i_manufact_id ,sum(total_sales) total_sales
- from  (select * from ss
+ from  (select * from ss 
         union all
-        select * from cs
+        select * from cs 
         union all
         select * from ws) tmp1
  group by i_manufact_id
