@@ -269,6 +269,18 @@ mysql_engine_check_load_status() {
         -e "SHOW LOAD WHERE Label = '${label}'\\G" 2>/dev/null
 }
 
+mysql_engine_print_load_status() {
+    local waited="$1"
+    local status_output="$2"
+
+    echo "SHOW LOAD result after ${waited}s:"
+    if [ -n "$(echo "$status_output" | tr -d '[:space:]')" ]; then
+        printf '%s\n' "$status_output"
+    else
+        echo "<empty>"
+    fi
+}
+
 mysql_engine_load_data() {
     local detected_method="$1"
     local load_file="$2"
@@ -308,11 +320,11 @@ mysql_engine_load_data() {
 
             local status_output
             status_output=$(mysql_engine_check_load_status "$load_label")
+            mysql_engine_print_load_status "$waited" "$status_output"
 
             # Fail fast when the load label cannot be found.
             if [ -z "$(echo "$status_output" | tr -d '[:space:]')" ] || \
                echo "$status_output" | grep -qi "Empty set"; then
-                echo "$status_output"
                 echo "ERROR: S3 load label not found: $load_label" >&2
                 return 1
             fi
@@ -321,7 +333,6 @@ mysql_engine_load_data() {
                 echo "    S3 load completed successfully"
                 break
             elif echo "$status_output" | grep -q "CANCELLED"; then
-                echo "$status_output"
                 echo "ERROR: S3 load cancelled" >&2
                 return 1
             fi
