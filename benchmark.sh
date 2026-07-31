@@ -981,7 +981,9 @@ run_builtin_analyze() {
                 start_time=$(date +%s%3N)
 
                 local analyze_output
-                if ! analyze_output=$(engine_analyze_table "$target_db" "$table" "$analyze_type" 2>&1); then
+                local analyze_status=0
+                analyze_output=$(engine_analyze_table "$target_db" "$table" "$analyze_type" 2>&1) || analyze_status=$?
+                if [ "$analyze_status" -ne 0 ] || [[ " ${analyze_output,,} " == *" error "* ]]; then
                     if [ -n "$analyze_output" ]; then
                         printf "%s\n" "$analyze_output" >&2
                     fi
