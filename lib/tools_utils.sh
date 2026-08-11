@@ -22,10 +22,6 @@ init_common_tools() {
     if [ -d "$TOOLS_DIR/bin" ]; then
         export PATH="$TOOLS_DIR/bin:$PATH"
     fi
-
-    if [ -d "$TOOLS_DIR/lib" ]; then
-        export LD_LIBRARY_PATH="$TOOLS_DIR/lib:${LD_LIBRARY_PATH:-}"
-    fi
 }
 
 # Initialize yq from tools directory
@@ -179,32 +175,25 @@ init_mysql_client() {
     _init_tools_dir
     init_common_tools
 
-    local mysql_dir="$TOOLS_DIR/mysql_client_dir"
-    local mysql_binary="$mysql_dir/bin/mysql"
-    local mysql_archive="$TOOLS_DIR/mysql_client_dir.tar.gz"
-
-    if [ ! -x "$mysql_binary" ] && [ -f "$mysql_archive" ]; then
-        echo "Extracting mysql client..."
-        rm -rf "$mysql_dir"
-        tar -xzf "$mysql_archive" -C "$TOOLS_DIR"
-    fi
+    local mysql_binary="$TOOLS_DIR/bin/mysql"
+    local mysql_lib="$TOOLS_DIR/lib"
+    local mysql_ld_path=""
+    local system_mysql=""
 
     if [ -x "$mysql_binary" ]; then
-        export PATH="$mysql_dir/bin:$PATH"
-        if [ -d "$mysql_dir/lib" ]; then
-            export LD_LIBRARY_PATH="$mysql_dir/lib:${LD_LIBRARY_PATH:-}"
+        mysql_ld_path="${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$mysql_lib"
+        if env LD_LIBRARY_PATH="$mysql_ld_path" "$mysql_binary" --version >/dev/null 2>&1; then
+            export PATH="$TOOLS_DIR/bin:$PATH"
+            export LD_LIBRARY_PATH="$mysql_ld_path"
+            echo "Using local mysql client: $mysql_binary"
+            return 0
         fi
-        echo "Using local mysql client: $mysql_binary"
-        return 0
+        echo "WARNING: local mysql client is not runnable on this host, falling back to system mysql." >&2
     fi
-
-    if [ -x "$TOOLS_DIR/bin/mysql" ]; then
-        echo "Using local mysql client: $TOOLS_DIR/bin/mysql"
-        return 0
-    fi
-
-    if command -v mysql >/dev/null 2>&1; then
-        echo "Using system mysql client"
+    system_mysql="$(command -p -v mysql 2>/dev/null || true)"
+    if [ -n "$system_mysql" ]; then
+        export PATH="$(dirname "$system_mysql"):$PATH"
+        echo "Using system mysql client: $system_mysql"
         return 0
     fi
 
