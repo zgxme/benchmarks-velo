@@ -398,6 +398,7 @@ run_load_directory() {
         else
             # Default fallback for engines that don't implement engine_load_data
             if [[ "$detected_method" == "stream_load" ]]; then
+                init_curl_tool || die "Failed to initialize curl"
                 if load_output=$(bash "$load_file" 2>&1); then
                     echo "$load_output"
                 else

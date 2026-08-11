@@ -63,14 +63,15 @@ init_snowflake_client() {
     fi
 }
 
-# Initialize MySQL client
-# Placeholder for future implementation
-init_mysql_client() {
-    if command -v mysql >/dev/null 2>&1; then
-        echo "mysql client found in system PATH"
-        return 0
-    fi
-    
-    echo "ERROR: mysql client not found. Please install mysql-client package." >&2
-    return 1
-}
+# Initialize MySQL client if the main tool initializer did not provide one.
+if ! command -v init_mysql_client >/dev/null 2>&1; then
+    init_mysql_client() {
+        if command -v mysql >/dev/null 2>&1; then
+            echo "mysql client found in system PATH"
+            return 0
+        fi
+
+        echo "ERROR: mysql client not found. Please install mysql-client package." >&2
+        return 1
+    }
+fi
