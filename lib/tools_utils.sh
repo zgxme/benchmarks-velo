@@ -8,8 +8,8 @@
 TOOLS_DIR=""
 TOOLS_WRAPPER_DIR=""
 TOOLS_COMMON_TOOLS_READY=""
-TOOLS_MYSQL_TOOL_READY=""
 TOOLS_CURL_TOOL_READY=""
+TOOLS_UTILS_LOADED=1
 
 # Initialize tools directory path
 _init_tools_dir() {
@@ -293,22 +293,6 @@ init_sysbench() {
 
     echo "ERROR: sysbench not found in tools directory or system PATH" >&2
     return 1
-}
-
-init_mysql_client_with_fallback() {
-    _init_tools_dir
-    _init_tools_wrapper_dir || return 1
-
-    if [ -n "$TOOLS_MYSQL_TOOL_READY" ]; then
-        return 0
-    fi
-
-    _init_command_with_fallback mysql "$TOOLS_DIR/bin/mysql" "$TOOLS_DIR/lib" || return 1
-    TOOLS_MYSQL_TOOL_READY=1
-}
-
-init_mysql_client() {
-    init_mysql_client_with_fallback "$@"
 }
 
 init_python_runtime() {

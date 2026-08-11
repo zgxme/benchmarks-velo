@@ -31,6 +31,7 @@ create_temp_sql_file() {
 # Load modular components
 source "$SCRIPT_DIR/lib/common_utils.sh"
 source "$SCRIPT_DIR/lib/tools_utils.sh"
+source "$SCRIPT_DIR/lib/client_utils.sh"
 source "$SCRIPT_DIR/lib/jmx_generator.sh"
 source "$SCRIPT_DIR/lib/result.sh"
 
