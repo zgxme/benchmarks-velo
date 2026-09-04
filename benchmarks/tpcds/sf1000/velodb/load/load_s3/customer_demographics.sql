@@ -8,6 +8,8 @@ LOAD LABEL customer_demographics_${TIMESTAMP}
 )
 WITH S3
 (
+    "AWS_ACCESS_KEY" = "${STORAGE_ACCESS_KEY}",
+    "AWS_SECRET_KEY" = "${STORAGE_SECRET_KEY}",
     "AWS_ENDPOINT" = "${STORAGE_ENDPOINT}",
     "AWS_REGION" = "${STORAGE_REGION}",
     "use_path_style" = "false"
