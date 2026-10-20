@@ -61,9 +61,13 @@ init_yq() {
 
     if [ ! -f "$yq_binary" ] && [[ "$machine_arch" == "arm64" || "$machine_arch" == "aarch64" ]]; then
         local yq_arm64_url="${YQ_LINUX_ARM64_URL:-https://qa-build.oss-cn-beijing.aliyuncs.com/gzf/tmp/trusted/yq_linux_arm64}"
+        local curl_bin="/usr/bin/curl"
+        if [ ! -x "$curl_bin" ]; then
+            curl_bin="$(command -v curl)"
+        fi
         echo "Downloading ARM64 yq from ${yq_arm64_url}"
         mkdir -p "$yq_dir"
-        if ! curl --fail --silent --show-error --location \
+        if ! "$curl_bin" --fail --silent --show-error --location \
             --retry 3 --retry-delay 2 \
             "$yq_arm64_url" -o "$yq_binary"; then
             rm -f "$yq_binary"
@@ -230,6 +234,13 @@ init_mysql_client() {
     if [[ "$machine_arch" != "arm64" && "$machine_arch" != "aarch64" ]] \
         && [ -x "$TOOLS_DIR/bin/mysql" ]; then
         echo "Using local mysql client: $TOOLS_DIR/bin/mysql"
+        return 0
+    fi
+
+    if [[ "$machine_arch" == "arm64" || "$machine_arch" == "aarch64" ]] \
+        && [ -x "/usr/bin/mysql" ]; then
+        export PATH="/usr/bin:/bin:${PATH}"
+        echo "Using system mysql client"
         return 0
     fi
 
