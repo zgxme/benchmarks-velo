@@ -197,14 +197,16 @@ EOF
     echo "Query mode: $query_mode"
     
     # Process query directories
-    query_dirs=() # Explicitly declare an array
+    local -a query_dirs=()
     while IFS= read -r line; do
         query_dirs+=("$line")
     done < <(yq eval '.paths.query_dirs[]?' "$CONFIG_FILE")
     
     if [ ${#query_dirs[@]} -eq 0 ]; then
-        echo "No query directories specified, using default 'query/'"
-        query_dirs=("query/")
+        # load_config exports QUERY_DIR from the singular paths.query_dir
+        # field. Keep the legacy query/ default when neither field is set.
+        query_dirs=("${QUERY_DIR:-query/}")
+        echo "No query_dirs specified, using query_dir: ${query_dirs[0]}"
     fi
     
     # Collect all queries first
@@ -278,6 +280,10 @@ EOF
             
         done < <(find "$query_dir" -name "*.sql" -type f -print0 | sort -zV)
     done
+
+    if [ ${#all_query_names[@]} -eq 0 ]; then
+        die "No SQL queries found for JMeter generation; check paths.query_dir or paths.query_dirs"
+    fi
     
     # Now generate JMX based on query_by_query setting
     if [ "$query_by_query" = "true" ]; then
