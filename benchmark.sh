@@ -1155,6 +1155,15 @@ run_jmeter() {
     else
         die "JMeter not found. Please provide JMeter archive in tools directory or install it system-wide."
     fi
+
+    # Large result sets and high JDBC concurrency can exhaust JMeter's small
+    # default heap. Keep this overridable for constrained test clients.
+    if [ -z "${HEAP:-}" ]; then
+        export HEAP="-Xms2g -Xmx8g"
+        echo "Using default JMeter heap: ${HEAP}"
+    else
+        echo "Using configured JMeter heap: ${HEAP}"
+    fi
     
     # Execute JMeter in non-GUI mode
     if "$jmeter_cmd" \
