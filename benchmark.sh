@@ -1239,6 +1239,9 @@ main() {
     esac
     password="${password:-${PASSWORD:-}}"
     db="${db:-${DB:-}}"
+    # Stream-load scripts use the legacy uppercase DB variable. Derive it from
+    # the resolved lowercase database name when callers do not provide it.
+    export DB="${DB:-$db}"
     session="${session:-${SESSION:-true}}"
     load="${load:-${LOAD:-false}}"
     analyze="${analyze:-${ANALYZE:-false}}"
