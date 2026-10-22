@@ -196,40 +196,31 @@ EOF
     query_mode=$(yq eval '.paths.query_mode // "file"' "$CONFIG_FILE")
     echo "Query mode: $query_mode"
     
-    # Process query directories
-    local -a query_dirs=()
-    while IFS= read -r line; do
-        query_dirs+=("$line")
-    done < <(yq eval '.paths.query_dirs[]?' "$CONFIG_FILE")
-    
-    if [ ${#query_dirs[@]} -eq 0 ]; then
-        # load_config exports QUERY_DIR from the singular paths.query_dir
-        # field. Keep the legacy query/ default when neither field is set.
-        query_dirs=("${QUERY_DIR:-query/}")
-        echo "No query_dirs specified, using query_dir: ${query_dirs[0]}"
+    if [ "$(yq eval '.paths.query_dirs // ""' "$CONFIG_FILE")" != "" ]; then
+        die "paths.query_dirs is no longer supported; use paths.query_dir"
     fi
+
+    # load_config exports QUERY_DIR from paths.query_dir.
+    local query_dir="${QUERY_DIR:-query/}"
     
     # Collect all queries first
     local -a all_query_names=()
     local -a all_query_sqls=()
     
-    for query_dir in "${query_dirs[@]}"; do
-        # Convert relative path to absolute
-        if [[ "$query_dir" != /* ]]; then
-            query_dir="$TEST_ROOT/$query_dir"
-        fi
-        query_dir="${query_dir%/}"
-        if [ -z "$query_dir" ]; then
-            query_dir="/"
-        fi
-        
-        if [ ! -d "$query_dir" ]; then
-            echo "Query directory not found: $query_dir, skipping"
-            continue
-        fi
-        
+    # Convert relative path to absolute
+    if [[ "$query_dir" != /* ]]; then
+        query_dir="$TEST_ROOT/$query_dir"
+    fi
+    query_dir="${query_dir%/}"
+    if [ -z "$query_dir" ]; then
+        query_dir="/"
+    fi
+
+    if [ ! -d "$query_dir" ]; then
+        echo "Query directory not found: $query_dir, skipping"
+    else
         echo "Processing queries from $(basename "$query_dir")..."
-        
+
         # Process all SQL files under query_dir recursively (sorted numerically)
         while IFS= read -r -d '' query_file; do
             if [ ! -f "$query_file" ]; then
@@ -279,10 +270,10 @@ EOF
             fi
             
         done < <(find "$query_dir" -name "*.sql" -type f -print0 | sort -zV)
-    done
+    fi
 
     if [ ${#all_query_names[@]} -eq 0 ]; then
-        die "No SQL queries found for JMeter generation; check paths.query_dir or paths.query_dirs"
+        die "No SQL queries found for JMeter generation; check paths.query_dir"
     fi
     
     # Now generate JMX based on query_by_query setting

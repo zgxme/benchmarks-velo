@@ -201,6 +201,10 @@ load_config() {
         die "Invalid YAML syntax in configuration file: $CONFIG_FILE"
     fi
 
+    if [ "$(yq eval '.paths.query_dirs // ""' "$CONFIG_FILE")" != "" ]; then
+        die "paths.query_dirs is no longer supported; use paths.query_dir"
+    fi
+
     # Export connection and parameters
     for section in "engine.connection" "parameters"; do
         while IFS='=' read -r key value; do

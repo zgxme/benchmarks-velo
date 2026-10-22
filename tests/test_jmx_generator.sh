@@ -50,4 +50,17 @@ if (generate_jmx) >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "PASS: JMX generator honors query_dir and rejects zero queries"
+printf '%s\n' \
+  "paths:" \
+  "  query_dirs:" \
+  "    - custom_queries/" \
+  "  query_mode: file" \
+  > "${CONFIG_FILE}"
+QUERY_DIR="${TEST_ROOT}/custom_queries"
+if (generate_jmx) 2>"${tmp_dir}/legacy-query-dirs.err"; then
+  echo "expected paths.query_dirs to be rejected" >&2
+  exit 1
+fi
+grep -q 'paths.query_dirs is no longer supported' "${tmp_dir}/legacy-query-dirs.err"
+
+echo "PASS: JMeter generator uses query_dir, rejects query_dirs and zero queries"
