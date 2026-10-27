@@ -65,19 +65,29 @@ engine_init() {
 # 2. Execute a SQL file using trino CLI
 engine_run_sql_file() {
     local sql_file="$1"
+    local apply_session="${2:-true}"
+    local execution_catalog="$catalog"
+    local execution_schema="$schema"
     
     if [ ! -f "$sql_file" ]; then
         echo "ERROR: SQL file not found: $sql_file" >&2
         return 1
+    fi
+
+    if [[ "$apply_session" == "false" && -n "${ddl_catalog:-}" ]]; then
+        execution_catalog="$ddl_catalog"
+        execution_schema=""
     fi
     
     # Build trino command arguments
     local args=(
         --server "$host:$port"
         --user "$user"
-        --catalog "$catalog"
-        --schema "$schema"
+        --catalog "$execution_catalog"
     )
+    if [ -n "$execution_schema" ]; then
+        args+=(--schema "$execution_schema")
+    fi
     
     # Add password if provided
     if [ -n "${password:-}" ]; then

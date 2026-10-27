@@ -290,8 +290,11 @@ init_engine() {
 
 # Run DDL setup
 run_ddl() {
-    if ! engine_create_database; then
-        die "Database creation failed"
+    local skip_database_create="${ddl_skip_database_create:-false}"
+    if [[ "$skip_database_create" != "true" ]]; then
+        if ! engine_create_database; then
+            die "Database creation failed"
+        fi
     fi
 
     local ddl_file="${DDL:-ddl/ddl.sql}"
@@ -1239,6 +1242,9 @@ main() {
     esac
     password="${password:-${PASSWORD:-}}"
     db="${db:-${DB:-}}"
+    ddl="${ddl:-${DDL_ENABLED:-false}}"
+    ddl_catalog="${ddl_catalog:-${DDL_CATALOG:-}}"
+    ddl_skip_database_create="${ddl_skip_database_create:-${DDL_SKIP_DATABASE_CREATE:-false}}"
     session="${session:-${SESSION:-true}}"
     load="${load:-${LOAD:-false}}"
     analyze="${analyze:-${ANALYZE:-false}}"
@@ -1270,6 +1276,8 @@ main() {
     clear_sys_page_cache_http_path="${clear_sys_page_cache_http_path:-${CLEAR_SYS_PAGE_CACHE_HTTP_PATH:-/drop_sys_cache}}"
     clear_cache_ssh_user="${clear_cache_ssh_user:-${CLEAR_CACHE_SSH_USER:-root}}"
 
+    ddl="$(normalize_bool "$ddl")"
+    ddl_skip_database_create="$(normalize_bool "$ddl_skip_database_create")"
     session="$(normalize_bool "$session")"
     load="$(normalize_bool "$load")"
     analyze="$(normalize_bool "$analyze")"
@@ -1394,7 +1402,7 @@ main() {
     # Run benchmark workflow
     echo "Starting benchmark: $ENGINE_TYPE"
     # 1. Run DDL first so the database and tables exist
-    if [[ "$load" == "true" ]]; then
+    if [[ "$ddl" == "true" || "$load" == "true" ]]; then
         run_ddl
     fi
 
