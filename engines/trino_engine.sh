@@ -217,7 +217,6 @@ engine_get_table_rows() {
         --user "$user"
         --catalog "$catalog"
         --output-format TSV
-        --no-header
     )
 
     if [ -n "${password:-}" ]; then
@@ -249,7 +248,6 @@ engine_list_tables() {
         --catalog "$catalog"
         --schema "$target_schema"
         --output-format TSV
-        --no-header
     )
 
     if [ -n "${password:-}" ]; then

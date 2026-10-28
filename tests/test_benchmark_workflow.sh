@@ -183,6 +183,9 @@ test_trino_engine_lists_and_analyzes_tables() {
             || fail "Trino ANALYZE query missing"
         grep -Fq -- "SELECT count(*) FROM iceberg.tpch_sf1000_parquet.lineitem" "$fake_log" \
             || fail "Trino row count query missing"
+        if grep -Fq -- "--no-header" "$fake_log"; then
+            fail "Trino 484 does not support --no-header"
+        fi
     )
 }
 
