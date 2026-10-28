@@ -204,7 +204,12 @@ load_config() {
     # Export connection and parameters
     for section in "engine.connection" "parameters"; do
         while IFS='=' read -r key value; do
-            [ -n "$key" ] && [ -n "$value" ] && export "$key=$(eval echo "$value")"
+            [ -n "$key" ] && [ -n "$value" ] || continue
+            if [ "$section" = "parameters" ] && [ "$key" = "ddl" ]; then
+                export ENABLE_DDL="$(eval echo "$value")"
+            else
+                export "$key=$(eval echo "$value")"
+            fi
         done < <(yq eval ".$section // {} | to_entries | .[] | .key + \"=\" + .value" "$CONFIG_FILE")
     done
 
@@ -213,7 +218,11 @@ load_config() {
         value=$(yq eval ".paths.$key // \"\"" "$CONFIG_FILE")
         if [ -n "$value" ] && [ "$value" != "null" ]; then
             # Convert key to uppercase for env var name
-            env_var=$(echo "$key" | tr '[:lower:]' '[:upper:]')
+            if [ "$key" = "ddl" ]; then
+                env_var="DDL_FILE"
+            else
+                env_var=$(echo "$key" | tr '[:lower:]' '[:upper:]')
+            fi
             export "$env_var=$(eval echo "$value")"
         fi
     done
@@ -290,11 +299,13 @@ init_engine() {
 
 # Run DDL setup
 run_ddl() {
-    if ! engine_create_database; then
-        die "Database creation failed"
+    if [[ "${ddl_skip_database_create:-false}" != "true" ]]; then
+        if ! engine_create_database; then
+            die "Database creation failed"
+        fi
     fi
 
-    local ddl_file="${DDL:-ddl/ddl.sql}"
+    local ddl_file="${DDL_FILE:-ddl/ddl.sql}"
 
     # Convert relative path to absolute
     if [[ "$ddl_file" != /* ]]; then
@@ -313,7 +324,13 @@ run_ddl() {
     create_temp_sql_file "ddl"
     tmp_sql="$LAST_TEMP_FILE"
     envsubst < "$ddl_file" > "$tmp_sql"
-    if ! engine_run_sql_file "$tmp_sql" false; then
+    local ddl_status=0
+    if type -t engine_run_ddl_file >/dev/null; then
+        engine_run_ddl_file "$tmp_sql" || ddl_status=$?
+    else
+        engine_run_sql_file "$tmp_sql" false || ddl_status=$?
+    fi
+    if [ "$ddl_status" -ne 0 ]; then
         rm -f "$tmp_sql"
         die "DDL setup failed"
     fi
@@ -923,11 +940,12 @@ run_query() {
 
 
 run_analyze() {
-    if run_builtin_analyze; then
+    local builtin_rc=0
+    run_builtin_analyze || builtin_rc=$?
+    if [ "$builtin_rc" -eq 0 ]; then
         return 0
     fi
 
-    local builtin_rc=$?
     if [ "$builtin_rc" -eq 2 ]; then
         echo "Built-in analyze is unavailable for this engine, fallback to analyze SQL file."
         if run_analyze_with_sql_file; then
@@ -991,17 +1009,17 @@ run_analyze_with_sql_file() {
 }
 
 run_builtin_analyze() {
-    local target_db="${db:-}"
-    if [ -z "$target_db" ]; then
-        echo "Database is empty, cannot run built-in analyze" >&2
-        return 1
-    fi
-
     local engine_type_lower
     engine_type_lower="$(to_lower "${ENGINE_TYPE:-}")"
     if [[ "$engine_type_lower" != "doris" && "$engine_type_lower" != "starrocks" ]]; then
         echo "Built-in analyze is supported only for doris/starrocks, current engine: ${ENGINE_TYPE}" >&2
         return 2
+    fi
+
+    local target_db="${db:-}"
+    if [ -z "$target_db" ]; then
+        echo "Database is empty, cannot run built-in analyze" >&2
+        return 1
     fi
 
     local tables_output
@@ -1241,6 +1259,7 @@ main() {
     db="${db:-${DB:-}}"
     session="${session:-${SESSION:-true}}"
     load="${load:-${LOAD:-false}}"
+    enable_ddl="${enable_ddl:-${ENABLE_DDL:-}}"
     analyze="${analyze:-${ANALYZE:-false}}"
     analyze_type="${analyze_type:-${ANALYZE_TYPE:-analyze_full}}"
     query="${query:-${QUERY:-false}}"
@@ -1272,6 +1291,10 @@ main() {
 
     session="$(normalize_bool "$session")"
     load="$(normalize_bool "$load")"
+    enable_ddl="${enable_ddl:-$load}"
+    enable_ddl="$(normalize_bool "$enable_ddl")"
+    ddl_skip_database_create="${ddl_skip_database_create:-${DDL_SKIP_DATABASE_CREATE:-false}}"
+    ddl_skip_database_create="$(normalize_bool "$ddl_skip_database_create")"
     analyze="$(normalize_bool "$analyze")"
     query="$(normalize_bool "$query")"
     drop_database="$(normalize_bool "$drop_database")"
@@ -1393,8 +1416,8 @@ main() {
     
     # Run benchmark workflow
     echo "Starting benchmark: $ENGINE_TYPE"
-    # 1. Run DDL first so the database and tables exist
-    if [[ "$load" == "true" ]]; then
+    # 1. Run DDL when explicitly enabled, independent of the load phase.
+    if [[ "$enable_ddl" == "true" ]]; then
         run_ddl
     fi
 
