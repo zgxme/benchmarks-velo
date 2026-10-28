@@ -52,7 +52,7 @@ test_run_ddl_skips_database_creation_for_trino() {
         TEST_ROOT="$TEST_DIR/ddl"
         mkdir -p "$TEST_ROOT/ddl"
         printf 'SELECT 1;\n' > "$TEST_ROOT/ddl/ddl.sql"
-        DDL_FILE="ddl/ddl.sql"
+        DDL="ddl/ddl.sql"
         local_calls=""
         engine_create_database() {
             local_calls="${local_calls}create;"
@@ -73,8 +73,7 @@ test_run_ddl_prefers_engine_specific_ddl_runner() {
         TEST_ROOT="$TEST_DIR/ddl-engine"
         mkdir -p "$TEST_ROOT/ddl"
         printf 'SELECT 1;\n' > "$TEST_ROOT/ddl/ddl.sql"
-        DDL_FILE="ddl/ddl.sql"
-        ddl_skip_database_create="false"
+        DDL="ddl/ddl.sql"
         local_calls=""
         engine_create_database() {
             local_calls="${local_calls}create;"
