@@ -18,6 +18,7 @@ ENGINE_TYPE=""
 RESULT_DIR=""
 TIMESTAMP=""
 LAST_TEMP_FILE=""
+LOAD_PERFORMED=false
 
 create_temp_sql_file() {
     local prefix="$1"
@@ -204,12 +205,7 @@ load_config() {
     # Export connection and parameters
     for section in "engine.connection" "parameters"; do
         while IFS='=' read -r key value; do
-            [ -n "$key" ] && [ -n "$value" ] || continue
-            if [ "$section" = "parameters" ] && [ "$key" = "ddl" ]; then
-                export ENABLE_DDL="$(eval echo "$value")"
-            else
-                export "$key=$(eval echo "$value")"
-            fi
+            [ -n "$key" ] && [ -n "$value" ] && export "$key=$(eval echo "$value")"
         done < <(yq eval ".$section // {} | to_entries | .[] | .key + \"=\" + .value" "$CONFIG_FILE")
     done
 
@@ -518,6 +514,7 @@ run_load_directory() {
 run_load() {
     local load_dir="${LOAD_DIR:-}"
     local load_steps_count=0
+    LOAD_PERFORMED=false
 
     load_steps_count=$(yq eval '.paths.load_steps // [] | length' "$CONFIG_FILE")
 
@@ -525,6 +522,7 @@ run_load() {
         echo "No load directory configured, skipping data loading"
         return 0
     fi
+    LOAD_PERFORMED=true
 
     # Initialize load results CSV
     local load_csv="$RESULT_DIR/load.csv"
@@ -1259,7 +1257,6 @@ main() {
     db="${db:-${DB:-}}"
     session="${session:-${SESSION:-true}}"
     load="${load:-${LOAD:-false}}"
-    enable_ddl="${enable_ddl:-${ENABLE_DDL:-}}"
     analyze="${analyze:-${ANALYZE:-false}}"
     analyze_type="${analyze_type:-${ANALYZE_TYPE:-analyze_full}}"
     query="${query:-${QUERY:-false}}"
@@ -1291,8 +1288,6 @@ main() {
 
     session="$(normalize_bool "$session")"
     load="$(normalize_bool "$load")"
-    enable_ddl="${enable_ddl:-$load}"
-    enable_ddl="$(normalize_bool "$enable_ddl")"
     ddl_skip_database_create="${ddl_skip_database_create:-${DDL_SKIP_DATABASE_CREATE:-false}}"
     ddl_skip_database_create="$(normalize_bool "$ddl_skip_database_create")"
     analyze="$(normalize_bool "$analyze")"
@@ -1416,8 +1411,8 @@ main() {
     
     # Run benchmark workflow
     echo "Starting benchmark: $ENGINE_TYPE"
-    # 1. Run DDL when explicitly enabled, independent of the load phase.
-    if [[ "$enable_ddl" == "true" ]]; then
+    # 1. Run DDL as part of the load phase so external tables can be initialized.
+    if [[ "$load" == "true" ]]; then
         run_ddl
     fi
 
@@ -1431,7 +1426,11 @@ main() {
     # 3. Finally run Load and other phases
     if [[ "$load" == "true" ]]; then
         run_load
-        run_check_rows
+        if [[ "$LOAD_PERFORMED" == "true" ]]; then
+            run_check_rows
+        else
+            echo "No data load performed, skipping row checks"
+        fi
     fi
     
     if [[ "$analyze" != "true" ]]; then

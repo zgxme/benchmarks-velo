@@ -23,7 +23,7 @@ assert_not_contains() {
     [[ "$value" != *"$unexpected"* ]] || fail "unexpected '$unexpected' in '$value'"
 }
 
-test_load_config_separates_ddl_flag_and_path() {
+test_load_config_uses_separate_ddl_path_variable() {
     (
         source "$ROOT_DIR/benchmark.sh"
         CONFIG_FILE="$TEST_DIR/load-config.yaml"
@@ -41,7 +41,6 @@ paths:
   ddl: "ddl/custom.sql"
 YAML
         load_config >/dev/null
-        [ "$ENABLE_DDL" = "true" ] || fail "ENABLE_DDL was not loaded"
         [ "$DDL_FILE" = "ddl/custom.sql" ] || fail "DDL_FILE was not loaded"
     )
 }
@@ -162,7 +161,7 @@ SH
     )
 }
 
-test_load_config_separates_ddl_flag_and_path
+test_load_config_uses_separate_ddl_path_variable
 test_run_ddl_honors_skip_database_creation
 test_run_ddl_prefers_engine_specific_ddl_runner
 test_run_analyze_falls_back_when_builtin_is_unsupported
