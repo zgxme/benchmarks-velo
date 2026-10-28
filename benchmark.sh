@@ -18,7 +18,6 @@ ENGINE_TYPE=""
 RESULT_DIR=""
 TIMESTAMP=""
 LAST_TEMP_FILE=""
-LOAD_PERFORMED=false
 
 create_temp_sql_file() {
     local prefix="$1"
@@ -514,7 +513,6 @@ run_load_directory() {
 run_load() {
     local load_dir="${LOAD_DIR:-}"
     local load_steps_count=0
-    LOAD_PERFORMED=false
 
     load_steps_count=$(yq eval '.paths.load_steps // [] | length' "$CONFIG_FILE")
 
@@ -522,7 +520,6 @@ run_load() {
         echo "No load directory configured, skipping data loading"
         return 0
     fi
-    LOAD_PERFORMED=true
 
     # Initialize load results CSV
     local load_csv="$RESULT_DIR/load.csv"
@@ -1426,11 +1423,7 @@ main() {
     # 3. Finally run Load and other phases
     if [[ "$load" == "true" ]]; then
         run_load
-        if [[ "$LOAD_PERFORMED" == "true" ]]; then
-            run_check_rows
-        else
-            echo "No data load performed, skipping row checks"
-        fi
+        run_check_rows
     fi
     
     if [[ "$analyze" != "true" ]]; then
