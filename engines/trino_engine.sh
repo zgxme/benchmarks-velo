@@ -209,6 +209,34 @@ engine_get_data_size_bytes() {
     echo "$size" | tail -n 1
 }
 
+engine_get_table_rows() {
+    local table="$1"
+    local target_schema="${db:-${schema:-}}"
+    local args=(
+        --server "$host:$port"
+        --user "$user"
+        --catalog "$catalog"
+        --output-format TSV
+        --no-header
+    )
+
+    if [ -n "${password:-}" ]; then
+        args+=(--password)
+        export TRINO_PASSWORD="$password"
+    fi
+
+    local count
+    count="$(trino-cli "${args[@]}" --execute \
+        "SELECT count(*) FROM ${catalog}.${target_schema}.${table}" 2>/dev/null || true)"
+    count="${count%%$'\n'*}"
+    count="${count//$'\r'/}"
+    if [[ "$count" =~ ^[0-9]+$ ]]; then
+        echo "$count"
+    else
+        echo "0"
+    fi
+}
+
 engine_set_auto_analyze() {
     return 0
 }

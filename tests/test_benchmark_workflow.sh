@@ -166,16 +166,23 @@ test_trino_engine_lists_and_analyzes_tables() {
                 *"SELECT table_name"*)
                     printf 'lineitem\norders\n'
                     ;;
+                *"SELECT count(*)"*)
+                    printf '100\n'
+                    ;;
             esac
         }
 
         tables="$(engine_list_tables "$schema")"
         [ "$tables" = $'lineitem\norders' ] || fail "unexpected Trino tables: $tables"
+        rows="$(engine_get_table_rows "lineitem")"
+        [ "$rows" = "100" ] || fail "unexpected Trino row count: $rows"
         engine_analyze_table "$schema" "lineitem" "analyze_full" >/dev/null
-        grep -q -- "SELECT table_name FROM information_schema.tables" "$fake_log" \
+        grep -Fq -- "SELECT table_name FROM information_schema.tables" "$fake_log" \
             || fail "Trino table discovery query missing"
-        grep -q -- "ANALYZE iceberg.tpch_sf1000_parquet.lineitem" "$fake_log" \
+        grep -Fq -- "ANALYZE iceberg.tpch_sf1000_parquet.lineitem" "$fake_log" \
             || fail "Trino ANALYZE query missing"
+        grep -Fq -- "SELECT count(*) FROM iceberg.tpch_sf1000_parquet.lineitem" "$fake_log" \
+            || fail "Trino row count query missing"
     )
 }
 
