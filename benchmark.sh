@@ -213,11 +213,7 @@ load_config() {
         value=$(yq eval ".paths.$key // \"\"" "$CONFIG_FILE")
         if [ -n "$value" ] && [ "$value" != "null" ]; then
             # Convert key to uppercase for env var name
-            if [ "$key" = "ddl" ]; then
-                env_var="DDL_FILE"
-            else
-                env_var=$(echo "$key" | tr '[:lower:]' '[:upper:]')
-            fi
+            env_var=$(echo "$key" | tr '[:lower:]' '[:upper:]')
             export "$env_var=$(eval echo "$value")"
         fi
     done
@@ -294,13 +290,15 @@ init_engine() {
 
 # Run DDL setup
 run_ddl() {
-    if [[ "${ddl_skip_database_create:-false}" != "true" ]]; then
+    local engine_type_lower
+    engine_type_lower="$(to_lower "${ENGINE_TYPE:-}")"
+    if [[ "$engine_type_lower" != "trino" ]]; then
         if ! engine_create_database; then
             die "Database creation failed"
         fi
     fi
 
-    local ddl_file="${DDL_FILE:-ddl/ddl.sql}"
+    local ddl_file="${DDL:-ddl/ddl.sql}"
 
     # Convert relative path to absolute
     if [[ "$ddl_file" != /* ]]; then
@@ -1285,8 +1283,6 @@ main() {
 
     session="$(normalize_bool "$session")"
     load="$(normalize_bool "$load")"
-    ddl_skip_database_create="${ddl_skip_database_create:-${DDL_SKIP_DATABASE_CREATE:-false}}"
-    ddl_skip_database_create="$(normalize_bool "$ddl_skip_database_create")"
     analyze="$(normalize_bool "$analyze")"
     query="$(normalize_bool "$query")"
     drop_database="$(normalize_bool "$drop_database")"

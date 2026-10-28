@@ -23,7 +23,7 @@ assert_not_contains() {
     [[ "$value" != *"$unexpected"* ]] || fail "unexpected '$unexpected' in '$value'"
 }
 
-test_load_config_uses_separate_ddl_path_variable() {
+test_load_config_uses_ddl_path() {
     (
         source "$ROOT_DIR/benchmark.sh"
         CONFIG_FILE="$TEST_DIR/load-config.yaml"
@@ -41,18 +41,18 @@ paths:
   ddl: "ddl/custom.sql"
 YAML
         load_config >/dev/null
-        [ "$DDL_FILE" = "ddl/custom.sql" ] || fail "DDL_FILE was not loaded"
+        [ "$DDL" = "ddl/custom.sql" ] || fail "DDL path was not loaded"
     )
 }
 
-test_run_ddl_honors_skip_database_creation() {
+test_run_ddl_skips_database_creation_for_trino() {
     (
         source "$ROOT_DIR/benchmark.sh"
+        ENGINE_TYPE="trino"
         TEST_ROOT="$TEST_DIR/ddl"
         mkdir -p "$TEST_ROOT/ddl"
         printf 'SELECT 1;\n' > "$TEST_ROOT/ddl/ddl.sql"
         DDL_FILE="ddl/ddl.sql"
-        ddl_skip_database_create="true"
         local_calls=""
         engine_create_database() {
             local_calls="${local_calls}create;"
@@ -69,6 +69,7 @@ test_run_ddl_honors_skip_database_creation() {
 test_run_ddl_prefers_engine_specific_ddl_runner() {
     (
         source "$ROOT_DIR/benchmark.sh"
+        ENGINE_TYPE="clickhouse"
         TEST_ROOT="$TEST_DIR/ddl-engine"
         mkdir -p "$TEST_ROOT/ddl"
         printf 'SELECT 1;\n' > "$TEST_ROOT/ddl/ddl.sql"
@@ -161,8 +162,8 @@ SH
     )
 }
 
-test_load_config_uses_separate_ddl_path_variable
-test_run_ddl_honors_skip_database_creation
+test_load_config_uses_ddl_path
+test_run_ddl_skips_database_creation_for_trino
 test_run_ddl_prefers_engine_specific_ddl_runner
 test_run_analyze_falls_back_when_builtin_is_unsupported
 test_trino_analyze_reports_unsupported_without_database
