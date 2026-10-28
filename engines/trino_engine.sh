@@ -209,6 +209,65 @@ engine_get_data_size_bytes() {
     echo "$size" | tail -n 1
 }
 
+engine_set_auto_analyze() {
+    return 0
+}
+
+engine_list_tables() {
+    local target_schema="$1"
+    local args=(
+        --server "$host:$port"
+        --user "$user"
+        --catalog "$catalog"
+        --schema "$target_schema"
+        --output-format TSV
+        --no-header
+    )
+
+    if [ -n "${password:-}" ]; then
+        args+=(--password)
+        export TRINO_PASSWORD="$password"
+    fi
+
+    trino-cli "${args[@]}" --execute \
+        "SELECT table_name FROM information_schema.tables WHERE table_schema = '${target_schema}' ORDER BY table_name" 2>&1
+}
+
+engine_drop_stats() {
+    return 0
+}
+
+engine_analyze_table() {
+    local target_schema="$1"
+    local table="$2"
+    local analyze_type="$3"
+    local args=(
+        --server "$host:$port"
+        --user "$user"
+        --catalog "$catalog"
+    )
+
+    case "$analyze_type" in
+        analyze_full)
+            ;;
+        analyze_no)
+            return 0
+            ;;
+        *)
+            echo "Unsupported analyze type for Trino: ${analyze_type}" >&2
+            return 1
+            ;;
+    esac
+
+    if [ -n "${password:-}" ]; then
+        args+=(--password)
+        export TRINO_PASSWORD="$password"
+    fi
+
+    trino-cli "${args[@]}" --execute \
+        "ANALYZE ${catalog}.${target_schema}.${table}" 2>&1
+}
+
 # Helper function to create schema (used in DDL setup)
 engine_create_database() {
     # Build trino command arguments

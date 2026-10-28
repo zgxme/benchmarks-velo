@@ -1004,8 +1004,19 @@ run_analyze_with_sql_file() {
 run_builtin_analyze() {
     local engine_type_lower
     engine_type_lower="$(to_lower "${ENGINE_TYPE:-}")"
-    if [[ "$engine_type_lower" != "doris" && "$engine_type_lower" != "starrocks" ]]; then
-        echo "Built-in analyze is supported only for doris/starrocks, current engine: ${ENGINE_TYPE}" >&2
+    if [[ "$engine_type_lower" != "doris" \
+        && "$engine_type_lower" != "starrocks" \
+        && "$engine_type_lower" != "trino" ]]; then
+        echo "Built-in analyze is supported only for doris/starrocks/trino, current engine: ${ENGINE_TYPE}" >&2
+        return 2
+    fi
+
+    # Normalize analyze_type to lowercase for robust matching
+    analyze_type="$(to_lower "${analyze_type:-${ANALYZE_TYPE:-analyze_full}}")"
+    if [[ "$engine_type_lower" == "trino" \
+        && "$analyze_type" != "analyze_full" \
+        && "$analyze_type" != "analyze_no" ]]; then
+        echo "Analyze type ${analyze_type} is not supported for Trino" >&2
         return 2
     fi
 
@@ -1030,8 +1041,6 @@ run_builtin_analyze() {
         [ -n "$table_entry" ] && tables+=("$table_entry")
     done < <(printf '%s\n' "$tables_output" | awk 'NF > 0')
 
-    # Normalize analyze_type to lowercase for robust matching
-    analyze_type="$(to_lower "${analyze_type:-${ANALYZE_TYPE:-analyze_full}}")"
     local analyze_csv="$RESULT_DIR/analyze.csv"
 
     echo "Running built-in analysis (type: ${analyze_type})..."
@@ -1052,16 +1061,18 @@ run_builtin_analyze() {
             sleep 600
         ;;
         analyze_full|analyze_sample)
-            local disable_output
-            if ! disable_output=$(engine_set_auto_analyze "false" 2>&1); then
-                if [[ "$disable_output" == *"not supported"* ]]; then
-                    return 2
+            if [[ "$engine_type_lower" != "trino" ]]; then
+                local disable_output
+                if ! disable_output=$(engine_set_auto_analyze "false" 2>&1); then
+                    if [[ "$disable_output" == *"not supported"* ]]; then
+                        return 2
+                    fi
+                    echo "$disable_output" >&2
+                    return 1
                 fi
-                echo "$disable_output" >&2
-                return 1
-            fi
 
-            sleep 60
+                sleep 60
+            fi
 
             local table
             for table in "${tables[@]}"; do
@@ -1100,13 +1111,15 @@ run_builtin_analyze() {
             done
         ;;
         analyze_no)
-            local disable_output
-            if ! disable_output=$(engine_set_auto_analyze "false" 2>&1); then
-                if [[ "$disable_output" == *"not supported"* ]]; then
-                    return 2
+            if [[ "$engine_type_lower" != "trino" ]]; then
+                local disable_output
+                if ! disable_output=$(engine_set_auto_analyze "false" 2>&1); then
+                    if [[ "$disable_output" == *"not supported"* ]]; then
+                        return 2
+                    fi
+                    echo "$disable_output" >&2
+                    return 1
                 fi
-                echo "$disable_output" >&2
-                return 1
             fi
 
             local table

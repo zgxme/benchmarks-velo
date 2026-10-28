@@ -106,16 +106,76 @@ test_run_analyze_falls_back_when_builtin_is_unsupported() {
     )
 }
 
-test_trino_analyze_reports_unsupported_without_database() {
+test_trino_builtin_analyze_runs_tables() {
     (
         source "$ROOT_DIR/benchmark.sh"
         ENGINE_TYPE="trino"
-        db=""
+        db="tpch_sf1000_parquet"
+        analyze_type="analyze_full"
+        RESULT_DIR="$TEST_DIR/trino-analyze"
+        mkdir -p "$RESULT_DIR"
+        analyze_calls_file="$TEST_DIR/trino-analyze-calls"
+        : > "$analyze_calls_file"
+        sleep() { :; }
+        engine_list_tables() {
+            printf 'lineitem\norders\nregion\n'
+        }
+        engine_drop_stats() {
+            return 0
+        }
+        engine_analyze_table() {
+            printf '%s/%s/%s;' "$1" "$2" "$3" >> "$analyze_calls_file"
+        }
+        run_builtin_analyze >/dev/null
+        analyze_calls="$(cat "$analyze_calls_file")"
+        [ "$analyze_calls" = \
+            "tpch_sf1000_parquet/lineitem/analyze_full;tpch_sf1000_parquet/orders/analyze_full;tpch_sf1000_parquet/region/analyze_full;" ] \
+            || fail "unexpected Trino analyze calls: $analyze_calls"
+        [ -s "$RESULT_DIR/analyze.csv" ] || fail "Trino analyze.csv missing"
+    )
+}
+
+test_trino_analyze_rejects_sample() {
+    (
+        source "$ROOT_DIR/benchmark.sh"
+        ENGINE_TYPE="trino"
+        db="tpch_sf1000_parquet"
+        analyze_type="analyze_sample"
         set +e
         run_builtin_analyze >/dev/null 2>&1
         local rc=$?
         set -e
-        [ "$rc" -eq 2 ] || fail "expected Trino analyze rc=2, got $rc"
+        [ "$rc" -eq 2 ] || fail "expected Trino sample analyze rc=2, got $rc"
+    )
+}
+
+test_trino_engine_lists_and_analyzes_tables() {
+    (
+        source "$ROOT_DIR/engines/trino_engine.sh"
+        local fake_log="$TEST_DIR/trino-cli.log"
+        : > "$fake_log"
+        host="127.0.0.1"
+        port="8080"
+        user="trino"
+        password=""
+        catalog="iceberg"
+        schema="tpch_sf1000_parquet"
+        trino-cli() {
+            printf '%s\n' "$*" >> "$fake_log"
+            case "$*" in
+                *"SELECT table_name"*)
+                    printf 'lineitem\norders\n'
+                    ;;
+            esac
+        }
+
+        tables="$(engine_list_tables "$schema")"
+        [ "$tables" = $'lineitem\norders' ] || fail "unexpected Trino tables: $tables"
+        engine_analyze_table "$schema" "lineitem" "analyze_full" >/dev/null
+        grep -q -- "SELECT table_name FROM information_schema.tables" "$fake_log" \
+            || fail "Trino table discovery query missing"
+        grep -q -- "ANALYZE iceberg.tpch_sf1000_parquet.lineitem" "$fake_log" \
+            || fail "Trino ANALYZE query missing"
     )
 }
 
@@ -165,7 +225,9 @@ test_load_config_uses_ddl_path
 test_run_ddl_skips_database_creation_for_trino
 test_run_ddl_prefers_engine_specific_ddl_runner
 test_run_analyze_falls_back_when_builtin_is_unsupported
-test_trino_analyze_reports_unsupported_without_database
+test_trino_builtin_analyze_runs_tables
+test_trino_analyze_rejects_sample
+test_trino_engine_lists_and_analyzes_tables
 test_clickhouse_ddl_fans_out_to_cluster_workers
 
 echo "All benchmark workflow tests passed."
